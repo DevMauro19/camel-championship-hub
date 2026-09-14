@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/Spinner";
 import { RaceFormDialog } from "@/components/RaceFormDialog";
 import { AddParticipantsDialog } from "@/components/AddParticipantsDialog";
+import { WinnerForm } from "@/components/WinnerForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -223,6 +224,8 @@ function RaceDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {race.status === "COMPLETED" && canManage ? <WinnerForm race={race} /> : null}
       </div>
 
       <RaceFormDialog open={editOpen} onOpenChange={setEditOpen} race={race} />

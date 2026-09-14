@@ -39,6 +39,8 @@ interface StoreValue extends StoreState {
   approveRegistration: (id: number) => void;
   rejectRegistration: (id: number, validationNotes: string) => void;
   saveResults: (raceId: number, rows: Omit<RaceResult, "id">[]) => void;
+  /** Marks a competitor as the winner (position 1) of a completed race. */
+  setWinner: (raceId: number, competitorId: number) => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -453,6 +455,64 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           description: `Recorded ${rows.length} result rows for race #${raceId}`,
           newValue: "COMPLETED",
         });
+      },
+      setWinner: async (raceId, competitorId) => {
+        const existing = state.results.find(
+          (r) => r.raceId === raceId && r.competitorId === competitorId,
+        );
+        const previous = state.results.find(
+          (r) => r.raceId === raceId && r.position === 1 && r.competitorId !== competitorId,
+        );
+        const saved = await persist(async () => {
+          // Free up first place before assigning it to someone else.
+          if (previous) {
+            await api.results
+              .update(previous.id, {
+                raceId,
+                competitorId: previous.competitorId,
+                position: 2,
+                timeSeconds: previous.timeSeconds,
+                status: previous.status,
+              })
+              .catch(() => undefined);
+          }
+          const body = {
+            raceId,
+            competitorId,
+            position: 1,
+            status: "FINISHED",
+            ...(existing?.timeSeconds ? { timeSeconds: existing.timeSeconds } : {}),
+          };
+          return existing ? api.results.update(existing.id, body) : api.results.create(body);
+        });
+        if (!saved) return false;
+
+        setState((prev) => {
+          const others = prev.results.filter(
+            (r) => !(r.raceId === raceId && (r.competitorId === competitorId || r.position === 1)),
+          );
+          const demoted = previous
+            ? [{ ...previous, position: 2 }]
+            : [];
+          const winner: RaceResult = existing
+            ? { ...existing, position: 1, status: "FINISHED" }
+            : {
+                id: nextId(prev.results),
+                raceId,
+                competitorId,
+                position: 1,
+                timeSeconds: null,
+                status: "FINISHED",
+              };
+          return { ...prev, results: [...others, ...demoted, winner] };
+        });
+        log({
+          action: "SET_RACE_WINNER",
+          entityType: "Race",
+          description: `Competitor #${competitorId} marked as winner of race #${raceId}`,
+          newValue: "POSITION_1",
+        });
+        return true;
       },
     };
   }, [state, loading, log, live, refresh, user]);
