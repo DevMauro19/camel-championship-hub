@@ -64,10 +64,11 @@ export function WinnerForm({ race }: { race: Race }) {
               })}
             </RadioGroup>
             <Button
-              disabled={saving}
+              disabled={saving || !pick}
               onClick={() => {
-                if (!pick) {
-                  toast.error("Selecciona un participante primero.");
+                const registration = approved.find((r) => String(r.competitorId) === pick);
+                if (!pick || !registration?.id) {
+                  toast.error("Selecciona un participante aprobado primero.");
                   return;
                 }
                 setSaving(true);
