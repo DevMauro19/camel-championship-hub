@@ -151,14 +151,24 @@ function mapRegistration(row: Row): Registration {
   };
 }
 
-function mapResult(row: Row): RaceResult {
+/**
+ * Maps a ResultResponse. The backend keys results by registration and names the
+ * position/time fields differently, so fall back to the registration to recover
+ * which competitor ran in which race.
+ */
+function mapResult(row: Row, registrations: Registration[]): RaceResult {
   const status = str(row, "status", "resultStatus").toUpperCase();
-  const position = num(row, "position", "finishingPosition");
-  const time = num(row, "timeSeconds", "finishTimeSeconds", "durationSeconds");
+  const position = num(row, "finalPosition", "position", "finishingPosition");
+  const time = num(row, "completionTimeSeconds", "timeSeconds", "finishTimeSeconds", "durationSeconds");
+  const registrationId = num(row, "registrationId", "registration");
+  const registration = registrations.find((r) => r.id === registrationId);
+  const raceId = num(row, "raceId") || registration?.raceId || 0;
+  const competitorId =
+    num(row, "competitorId", "userId", "participantId") || registration?.competitorId || 0;
   return {
     id: num(row, "id", "resultId"),
-    raceId: num(row, "raceId"),
-    competitorId: num(row, "competitorId", "userId", "participantId"),
+    raceId,
+    competitorId,
     position: position > 0 ? position : null,
     timeSeconds: time > 0 ? time : null,
     status: (["FINISHED", "DISQUALIFIED", "DID_NOT_FINISH", "DID_NOT_START"].includes(status)
@@ -166,6 +176,7 @@ function mapResult(row: Row): RaceResult {
       : "FINISHED") as RaceResult["status"],
   };
 }
+
 
 export interface RemoteSnapshot {
   reachable: boolean;
