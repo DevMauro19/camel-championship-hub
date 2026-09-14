@@ -463,20 +463,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const previous = state.results.find(
           (r) => r.raceId === raceId && r.position === 1 && r.competitorId !== competitorId,
         );
+        // The API keys results by registration, not by competitor.
+        const registrationFor = (cid: number) =>
+          state.registrations.find(
+            (r) => r.raceId === raceId && r.competitorId === cid && r.status === "APPROVED",
+          ) ?? state.registrations.find((r) => r.raceId === raceId && r.competitorId === cid);
+        const registration = registrationFor(competitorId);
+        if (!registration) {
+          toast.error("No encontramos la inscripción de ese participante en la carrera.");
+          return false;
+        }
         const saved = await persist(async () => {
           // Free up first place before assigning it to someone else.
           if (previous) {
-            await api.results
-              .update(previous.id, {
-                raceId,
-                competitorId: previous.competitorId,
-                position: 2,
-                timeSeconds: previous.timeSeconds,
-                status: previous.status,
-              })
-              .catch(() => undefined);
+            const prevRegistration = registrationFor(previous.competitorId);
+            if (prevRegistration) {
+              await api.results
+                .update(previous.id, {
+                  registrationId: prevRegistration.id,
+                  raceId,
+                  competitorId: previous.competitorId,
+                  position: 2,
+                  ...(previous.timeSeconds ? { timeSeconds: previous.timeSeconds } : {}),
+                  status: previous.status,
+                })
+                .catch(() => undefined);
+            }
           }
           const body = {
+            registrationId: registration.id,
             raceId,
             competitorId,
             position: 1,
