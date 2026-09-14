@@ -525,6 +525,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
         // Result status wording differs between backend versions.
         const STATUSES = ["OFFICIAL", "FINISHED", "COMPLETED", "PROVISIONAL"];
+        const isRetryable = (error: unknown) =>
+          error instanceof ApiError && (error.status === 400 || error.status === 422 || error.status === 404);
         const sendResult = async (
           resultId: number | undefined,
           registrationId: number,
@@ -532,16 +534,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           timeSeconds: number | null | undefined,
         ) => {
           let lastError: unknown;
-          for (const status of STATUSES) {
-            const body = resultBody(registrationId, position, timeSeconds, status);
-            try {
-              return resultId
-                ? await api.results.update(resultId, body)
-                : await api.results.create(body);
-            } catch (error) {
-              lastError = error;
-              if (!(error instanceof ApiError) || (error.status !== 400 && error.status !== 422)) {
-                throw error;
+          // Prefer updating an existing row, but fall back to creating one when
+          // the server doesn't recognise the id (locally seeded results).
+          const attempts: Array<(body: unknown) => Promise<unknown>> = resultId
+            ? [(body) => api.results.update(resultId, body), (body) => api.results.create(body)]
+            : [(body) => api.results.create(body)];
+          for (const attempt of attempts) {
+            for (const status of STATUSES) {
+              const body = resultBody(registrationId, position, timeSeconds, status);
+              try {
+                return await attempt(body);
+              } catch (error) {
+                lastError = error;
+                if (!isRetryable(error)) throw error;
               }
             }
           }
@@ -559,6 +564,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
           return sendResult(existing?.id, registration.id, 1, existing?.timeSeconds);
         });
+
 
         if (!saved) return false;
 
@@ -587,8 +593,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           description: `Competitor #${competitorId} marked as winner of race #${raceId}`,
           newValue: "POSITION_1",
         });
+        void refresh();
         return true;
       },
+
     };
   }, [state, loading, log, live, refresh, user]);
 
