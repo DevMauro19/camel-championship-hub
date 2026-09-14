@@ -463,41 +463,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const previous = state.results.find(
           (r) => r.raceId === raceId && r.position === 1 && r.competitorId !== competitorId,
         );
-        // The API keys results by registration, not by competitor.
-        const registrationFor = (cid: number) =>
-          state.registrations.find(
-            (r) => r.raceId === raceId && r.competitorId === cid && r.status === "APPROVED",
-          ) ?? state.registrations.find((r) => r.raceId === raceId && r.competitorId === cid);
-        const registration = registrationFor(competitorId);
-        if (!registration) {
-          toast.error("No encontramos la inscripción de ese participante en la carrera.");
+        // The API keys results by registration, and only approved ones are valid.
+        const approved = state.registrations.filter(
+          (r) => r.raceId === raceId && r.status === "APPROVED",
+        );
+        if (approved.length === 0) {
+          toast.error(
+            "No hay participantes aprobados para esta carrera. Debes aprobar al menos una inscripción antes de registrar un resultado.",
+          );
           return false;
         }
+        const registrationFor = (cid: number) => approved.find((r) => r.competitorId === cid);
+        const registration = registrationFor(competitorId);
+        if (!registration?.id) {
+          toast.error("Ese participante no tiene una inscripción aprobada en la carrera.");
+          return false;
+        }
+        const resultBody = (registrationId: number, position: number, timeSeconds?: number | null) => ({
+          registrationId,
+          startingPosition: position,
+          finalPosition: position,
+          completionTimeSeconds: timeSeconds ?? 0,
+          penaltyTimeSeconds: 0,
+          status: "OFFICIAL",
+          notes: position === 1 ? "Ganador" : `Puesto ${position}`,
+        });
         const saved = await persist(async () => {
           // Free up first place before assigning it to someone else.
           if (previous) {
             const prevRegistration = registrationFor(previous.competitorId);
-            if (prevRegistration) {
+            if (prevRegistration?.id) {
               await api.results
-                .update(previous.id, {
-                  registrationId: prevRegistration.id,
-                  raceId,
-                  competitorId: previous.competitorId,
-                  position: 2,
-                  ...(previous.timeSeconds ? { timeSeconds: previous.timeSeconds } : {}),
-                  status: previous.status,
-                })
+                .update(previous.id, resultBody(prevRegistration.id, 2, previous.timeSeconds))
                 .catch(() => undefined);
             }
           }
-          const body = {
-            registrationId: registration.id,
-            raceId,
-            competitorId,
-            position: 1,
-            status: "FINISHED",
-            ...(existing?.timeSeconds ? { timeSeconds: existing.timeSeconds } : {}),
-          };
+          const body = resultBody(registration.id, 1, existing?.timeSeconds);
           return existing ? api.results.update(existing.id, body) : api.results.create(body);
         });
         if (!saved) return false;
