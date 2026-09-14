@@ -224,6 +224,8 @@ function RaceDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {race.status === "COMPLETED" && canManage ? <WinnerForm race={race} /> : null}
       </div>
 
       <RaceFormDialog open={editOpen} onOpenChange={setEditOpen} race={race} />
