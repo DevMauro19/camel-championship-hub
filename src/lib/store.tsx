@@ -72,6 +72,32 @@ async function createRegistrationRequest(
   throw lastError;
 }
 
+/**
+ * Approves or rejects a registration through PATCH /registrations/{id}/decision.
+ * Backend versions disagree on the field name for the verdict, so try the known
+ * shapes and keep the first one the server accepts.
+ */
+async function decisionRequest(id: number, approved: boolean, reason: string): Promise<unknown> {
+  const verdict = approved ? "APPROVED" : "REJECTED";
+  const bodies: Record<string, unknown>[] = [
+    { decision: verdict, reason },
+    { status: verdict, reason },
+    { approved, reason },
+    { reason },
+  ];
+  let lastError: unknown;
+  for (const body of bodies) {
+    try {
+      return await api.registrations.decision(id, body);
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof ApiError) || (error.status !== 400 && error.status !== 422)) throw error;
+    }
+  }
+  throw lastError;
+}
+
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
