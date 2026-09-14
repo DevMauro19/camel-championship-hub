@@ -31,7 +31,8 @@ export function WinnerForm({ race }: { race: Race }) {
       <CardContent className="space-y-4">
         {approved.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Esta carrera no tiene participantes aprobados.
+            No hay participantes aprobados para esta carrera. Debes aprobar al menos una inscripción
+            antes de registrar un resultado.
           </p>
         ) : (
           <>
