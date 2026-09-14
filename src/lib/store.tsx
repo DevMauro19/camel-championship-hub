@@ -508,28 +508,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           toast.error("Ese participante no tiene una inscripción aprobada en la carrera.");
           return false;
         }
-        const resultBody = (registrationId: number, position: number, timeSeconds?: number | null) => ({
+        const resultBody = (
+          registrationId: number,
+          position: number,
+          timeSeconds: number | null | undefined,
+          status: string,
+        ) => ({
           registrationId,
           startingPosition: position,
           finalPosition: position,
-          completionTimeSeconds: timeSeconds ?? 0,
+          // The backend rejects zero/negative times, so always send a positive value.
+          completionTimeSeconds: timeSeconds && timeSeconds > 0 ? timeSeconds : 1,
           penaltyTimeSeconds: 0,
-          status: "OFFICIAL",
+          status,
           notes: position === 1 ? "Ganador" : `Puesto ${position}`,
         });
+        // Result status wording differs between backend versions.
+        const STATUSES = ["OFFICIAL", "FINISHED", "COMPLETED", "PROVISIONAL"];
+        const sendResult = async (
+          resultId: number | undefined,
+          registrationId: number,
+          position: number,
+          timeSeconds: number | null | undefined,
+        ) => {
+          let lastError: unknown;
+          for (const status of STATUSES) {
+            const body = resultBody(registrationId, position, timeSeconds, status);
+            try {
+              return resultId
+                ? await api.results.update(resultId, body)
+                : await api.results.create(body);
+            } catch (error) {
+              lastError = error;
+              if (!(error instanceof ApiError) || (error.status !== 400 && error.status !== 422)) {
+                throw error;
+              }
+            }
+          }
+          throw lastError;
+        };
         const saved = await persist(async () => {
           // Free up first place before assigning it to someone else.
           if (previous) {
             const prevRegistration = registrationFor(previous.competitorId);
             if (prevRegistration?.id) {
-              await api.results
-                .update(previous.id, resultBody(prevRegistration.id, 2, previous.timeSeconds))
-                .catch(() => undefined);
+              await sendResult(previous.id, prevRegistration.id, 2, previous.timeSeconds).catch(
+                () => undefined,
+              );
             }
           }
-          const body = resultBody(registration.id, 1, existing?.timeSeconds);
-          return existing ? api.results.update(existing.id, body) : api.results.create(body);
+          return sendResult(existing?.id, registration.id, 1, existing?.timeSeconds);
         });
+
         if (!saved) return false;
 
         setState((prev) => {
