@@ -211,7 +211,7 @@ export async function fetchRemoteSnapshot(): Promise<RemoteSnapshot> {
   const t = rows(teams, mapTeam);
   const r = rows(races, mapRace);
   const g = rows(registrations, mapRegistration);
-  const s = rows(results, mapResult);
+  const s = rows(results, (row) => mapResult(row, g.data));
 
   // Prefer the dedicated competitors endpoint; older backends without it still
   // expose the roster through /users.
