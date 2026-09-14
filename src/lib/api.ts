@@ -27,7 +27,9 @@ export function friendlyMessage(error: unknown): string {
       case 400:
         // Show the server's own explanation (validation messages, field errors).
         if (error.message && !error.message.startsWith("Request failed")) return error.message;
+        if (error.message.includes("(")) return error.message;
         return "Some of the details you entered aren't valid. Please review the form.";
+
       case 401:
         return "Your session has expired. Please sign in again.";
       case 403:
