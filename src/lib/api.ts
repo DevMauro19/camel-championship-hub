@@ -27,7 +27,9 @@ export function friendlyMessage(error: unknown): string {
       case 400:
         // Show the server's own explanation (validation messages, field errors).
         if (error.message && !error.message.startsWith("Request failed")) return error.message;
+        if (error.message.includes("(")) return error.message;
         return "Some of the details you entered aren't valid. Please review the form.";
+
       case 401:
         return "Your session has expired. Please sign in again.";
       case 403:
@@ -95,22 +97,50 @@ export async function apiRequest<T>(
   if (!response.ok) {
     let message = `Request failed with ${response.status}`;
     try {
-      const payload = (await response.json()) as {
-        message?: string;
-        fieldErrors?: Record<string, string>;
-      };
-      if (payload?.message) message = payload.message;
-      if (payload?.fieldErrors) {
-        const details = Object.entries(payload.fieldErrors)
-          .map(([field, reason]) => `${field}: ${reason}`)
-          .join(" · ");
-        if (details) message = `${message} (${details})`;
+      const raw = await response.text();
+      let payload: Record<string, unknown> | null = null;
+      try {
+        payload = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        if (raw.trim()) message = raw.trim().slice(0, 300);
+      }
+      if (payload) {
+        const text = (value: unknown) => (typeof value === "string" && value ? value : "");
+        message =
+          text(payload["message"]) ||
+          text(payload["detail"]) ||
+          text(payload["error"]) ||
+          message;
+        // Spring surfaces field-level problems under several different keys.
+        const details: string[] = [];
+        for (const key of ["fieldErrors", "errors", "violations", "validationErrors"]) {
+          const value = payload[key];
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            for (const [field, reason] of Object.entries(value as Record<string, unknown>)) {
+              details.push(`${field}: ${String(reason)}`);
+            }
+          }
+          if (Array.isArray(value)) {
+            for (const entry of value) {
+              if (typeof entry === "string") details.push(entry);
+              else if (entry && typeof entry === "object") {
+                const e = entry as Record<string, unknown>;
+                const field = text(e["field"]) || text(e["property"]) || text(e["path"]);
+                const reason =
+                  text(e["message"]) || text(e["defaultMessage"]) || text(e["error"]);
+                if (field || reason) details.push([field, reason].filter(Boolean).join(": "));
+              }
+            }
+          }
+        }
+        if (details.length) message = `${message} (${details.join(" · ")})`;
       }
     } catch {
       /* keep the default message */
     }
     throw new ApiError(response.status, message);
   }
+
   if (response.status === 204) return undefined as T;
   const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;
