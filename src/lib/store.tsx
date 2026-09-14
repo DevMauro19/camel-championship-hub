@@ -409,6 +409,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       approveRegistration: (id) => {
+        persist(() => decisionRequest(id, true, "Approved by organizer"));
         setState((prev) => ({
           ...prev,
           registrations: prev.registrations.map((r) =>
@@ -424,6 +425,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       },
       rejectRegistration: (id, validationNotes) => {
+        persist(() => decisionRequest(id, false, validationNotes));
         setState((prev) => ({
           ...prev,
           registrations: prev.registrations.map((r) =>
@@ -438,6 +440,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           newValue: "REJECTED",
         });
       },
+
       saveResults: (raceId, rows) => {
         setState((prev) => {
           const others = prev.results.filter((r) => r.raceId !== raceId);
