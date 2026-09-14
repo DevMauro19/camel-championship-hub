@@ -36,6 +36,8 @@ export interface Competitor {
   /** Email of the user who registered this competitor. */
   registeredByEmail?: string | undefined;
   teamId?: number | null | undefined;
+  /** Races completed, maintained by the backend when official results are recorded. */
+  completedRaces?: number | undefined;
 }
 
 export interface Team {

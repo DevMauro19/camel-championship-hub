@@ -593,7 +593,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           description: `Competitor #${competitorId} marked as winner of race #${raceId}`,
           newValue: "POSITION_1",
         });
-        void refresh();
+        // Competitor stats (completedRaces, wins, points) are owned by the backend
+        // and only change as a side effect of the recorded result, so re-read them
+        // after the POST /results response instead of patching the competitor.
+        await refresh();
         return true;
       },
 

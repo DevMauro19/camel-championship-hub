@@ -57,6 +57,7 @@ function CompetitorDetail() {
     ["Height", `${competitor.height} cm`],
     ["Country", competitor.country],
     ["Team", team?.name ?? "Unassigned"],
+    ["Completed races", `${competitor.completedRaces || history.length}`],
   ] as const;
 
   return (
