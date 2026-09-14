@@ -99,6 +99,7 @@ function mapUser(row: Row): Competitor {
       ? status
       : "ACTIVE") as Competitor["status"],
     teamId: (row["teamId"] as number | null | undefined) ?? null,
+    completedRaces: num(row, "completedRaces", "racesCompleted", "totalRaces") || 0,
   };
 }
 
