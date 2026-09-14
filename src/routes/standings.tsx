@@ -43,7 +43,8 @@ function StandingsPage() {
       return {
         competitor,
         points: own.reduce((sum, r) => sum + (r.position ? (POINTS[r.position] ?? 0) : 0), 0),
-        races: own.length,
+        // Prefer the backend counter, kept in sync when official results are recorded.
+        races: competitor.completedRaces || own.length,
         wins: own.filter((r) => r.position === 1).length,
         podiums: own.filter((r) => r.position !== null && r.position <= 3).length,
       };
