@@ -76,6 +76,8 @@ function mapCompetitor(row: Row): Competitor {
     age: num(row, "age") || ageFrom(dateOfBirth),
     registeredByEmail:
       str(row, "registeredByEmail", "email", "createdByEmail", "userEmail") || undefined,
+    // Server-owned counter: only ever read, never written from the client.
+    completedRaces: num(row, "completedRaces", "racesCompleted", "totalRaces") || 0,
   };
 }
 
