@@ -125,8 +125,9 @@ export function AddParticipantsDialog({
                     checked={picked.includes(c.id)}
                     onCheckedChange={() => toggle(c.id)}
                   />
-                  <span className="text-sm font-medium">{c.name}</span>
-                  <span className="text-xs text-muted-foreground">{labelize(c.type)}</span>
+                  <span className="text-sm font-medium">{c.title}</span>
+                  <span className="text-xs text-muted-foreground">{c.subtitle}</span>
+
                 </label>
               ))
             )}
