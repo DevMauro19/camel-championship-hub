@@ -593,8 +593,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           description: `Competitor #${competitorId} marked as winner of race #${raceId}`,
           newValue: "POSITION_1",
         });
+        void refresh();
         return true;
       },
+
     };
   }, [state, loading, log, live, refresh, user]);
 
