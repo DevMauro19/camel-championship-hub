@@ -214,11 +214,22 @@ function RaceDetail() {
                       <ClipboardCheck className="size-4" /> Registrations ({pending.length} pending)
                     </Link>
                   </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/races/$id/results" params={{ id: String(race.id) }}>
+                  {approved.length === 0 ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled
+                      title="Debes aprobar al menos una inscripción antes de registrar un resultado."
+                    >
                       <Trophy className="size-4" /> Record results
-                    </Link>
-                  </Button>
+                    </Button>
+                  ) : (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/races/$id/results" params={{ id: String(race.id) }}>
+                        <Trophy className="size-4" /> Record results
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               ) : null}
             </CardContent>
